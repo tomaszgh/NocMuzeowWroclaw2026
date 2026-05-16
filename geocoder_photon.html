@@ -170,8 +170,8 @@ function log(msg, cls=''){
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
 async function geocodePhoton(addr){
-  // location_bias_scale + lat/lon bias towards Wrocław center
-  const url=`https://photon.komoot.io/api/?q=${encodeURIComponent(addr)}&limit=3&lat=51.11&lon=17.03&location_bias_scale=0.5`;
+  // Minimal correct Photon URL - lat/lon bias towards Wrocław center
+  const url=`https://photon.komoot.io/api/?q=${encodeURIComponent(addr)}&limit=3&lat=51.11&lon=17.03`;
   const res=await fetch(url);
   if(!res.ok) throw new Error(`HTTP ${res.status}`);
   const data=await res.json();
@@ -184,7 +184,6 @@ async function geocodePhoton(addr){
       return {lat,lng};
     }
   }
-  // Fallback to first result even outside bbox
   const [lng,lat]=data.features[0].geometry.coordinates;
   return {lat,lng,outside:true};
 }
