@@ -21,13 +21,14 @@
 </head>
 <body>
 <h1>🗺 Geocoder – Noc Muzeów 2026 Wrocław</h1>
-<p>Uruchom raz na swoim komputerze. Geocoduje 112 adresów przez Nominatim (1 req/sek ≈ 2 min).<br>
-   Po zakończeniu skopiuj wygenerowany kod i wklej do <strong>noc-muzeow-2026.html</strong> zastępując tablicę <code>const EV=[...]</code>.</p>
+<p>Geocoduje 112 adresów przez <strong>Nominatim</strong> — 10 sekund przerwy między requestami (~20 minut łącznie).<br>
+   Po zakończeniu skopiuj wygenerowany kod i wklej do <strong>noc-muzeow-2026.html</strong>.</p>
 
 <div id="status">Gotowy do uruchomienia</div>
 <div id="progress"><div id="bar"></div></div>
 <div id="log"></div>
-<button id="startBtn" onclick="start()">▶ Uruchom geocoding</button>
+<button id="startBtn" onclick="start(0)">▶ Uruchom geocoding</button>
+<button id="resumeBtn" style="display:none;background:#e8963a">⟳ Wznów</button>
 <button id="copyBtn" onclick="copyOutput()">📋 Kopiuj kod</button>
 <div id="output"></div>
 
@@ -158,43 +159,74 @@ function log(msg, type=''){
 
 async function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
-async function geocode(addr){
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=pl`;
-  const res = await fetch(url, {headers:{'User-Agent':'NocMuzeow2026-OneTimeGeocoder/1.0'}});
-  const data = await res.json();
-  if(data && data[0]) return {lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon)};
-  return null;
+async function geocodeWithRetry(addr, retries=3){
+  for(let attempt=1; attempt<=retries; attempt++){
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=pl`;
+      const res = await fetch(url, {headers:{'User-Agent':'NocMuzeow2026-OneTimeGeocoder/1.0'}});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if(data && data[0]) return {lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon)};
+      return null;
+    } catch(e){
+      if(attempt < retries){
+        log(`  ↻ próba ${attempt} nieudana (${e.message}), czekam 15s...`, 'err');
+        await sleep(15000);
+      } else {
+        throw e;
+      }
+    }
+  }
 }
 
-async function start(){
+async function start(resumeFrom=0){
   if(running) return;
   running = true;
   document.getElementById('startBtn').disabled = true;
-  document.getElementById('log').innerHTML = '';
-  log('Startuje geocoding 112 adresów...');
-  log('Nominatim limit: 1 req/sek → ~2 minuty');
-  log('');
+  document.getElementById('resumeBtn').style.display = 'none';
+  if(resumeFrom===0){
+    document.getElementById('log').innerHTML = '';
+    log('Startuje geocoding 112 adresów przez Nominatim...');
+    log('Przerwa 10 sek między requestami (~20 minut łącznie)');
+    log('');
+  } else {
+    log(`Wznawianie od id:${ADDRESSES[resumeFrom].id}...`);
+  }
 
-  for(let i=0; i<ADDRESSES.length; i++){
+  let failedAt = -1;
+
+  for(let i=resumeFrom; i<ADDRESSES.length; i++){
     const a = ADDRESSES[i];
     document.getElementById('bar').style.width = ((i+1)/ADDRESSES.length*100)+'%';
     document.getElementById('status').textContent = `${i+1}/${ADDRESSES.length} · ${a.p}`;
     try {
-      const r = await geocode(a.p);
+      const r = await geocodeWithRetry(a.p);
       if(r){
         results[a.id] = r;
         log(`✓ id:${a.id} ${a.p} → ${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}`, 'ok');
       } else {
-        log(`✗ id:${a.id} ${a.p} → nie znaleziono`, 'err');
+        log(`⚠ id:${a.id} ${a.p} → nie znaleziono`, 'err');
       }
     } catch(e){
-      log(`✗ id:${a.id} błąd: ${e.message}`, 'err');
+      log(`✗ BŁĄD przy id:${a.id} – ${e.message}. Kliknij Wznów.`, 'err');
+      failedAt = i;
+      break;
     }
-    if(i < ADDRESSES.length-1) await sleep(1100);
+    if(i < ADDRESSES.length-1) await sleep(10000);
   }
 
-  document.getElementById('status').textContent = '✅ Gotowe! Skopiuj kod poniżej.';
-  showOutput();
+  running = false;
+  document.getElementById('startBtn').disabled = false;
+
+  if(failedAt >= 0){
+    document.getElementById('status').textContent = `⚠ Zatrzymano przy ${failedAt+1}/112. Poczekaj chwilę i kliknij Wznów.`;
+    const btn = document.getElementById('resumeBtn');
+    btn.style.display = 'inline-block';
+    btn.onclick = ()=>start(failedAt);
+  } else {
+    document.getElementById('status').textContent = '✅ Gotowe! Skopiuj kod poniżej.';
+    showOutput();
+  }
 }
 
 function showOutput(){
