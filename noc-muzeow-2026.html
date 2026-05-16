@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Noc Muzeów 2026 – Wrocław</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --night:#0b0b18; --panel:#12121e; --card:#1a1a2e;
+  --gold:#f0c040; --rose:#e05a6e; --teal:#3accc8; --violet:#a78bfa;
+  --text:#e6e0d0; --muted:#7a7490; --border:#252340;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;background:var(--night);font-family:'DM Sans',sans-serif;color:var(--text);}
+body{display:flex;flex-direction:column;overflow:hidden;}
+
+/* HEADER */
+#hdr{
+  height:50px;flex-shrink:0;
+  background:var(--night);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;padding:0 16px;
+}
+.hstar{font-size:20px;filter:drop-shadow(0 0 6px var(--gold));animation:glow 3s ease-in-out infinite;}
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 5px var(--gold))}50%{filter:drop-shadow(0 0 16px var(--gold))}}
+.htitle{flex:1;}
+.htitle h1{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--gold);font-weight:900;line-height:1;}
+.htitle p{font-size:0.62rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-top:2px;}
+#cnt{background:var(--gold);color:var(--night);font-weight:700;font-size:0.74rem;padding:3px 10px;border-radius:20px;white-space:nowrap;}
+
+/* TOOLBAR */
+#tbr{
+  height:42px;flex-shrink:0;
+  background:var(--panel);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:7px;padding:0 12px;overflow-x:auto;
+}
+#tbr::-webkit-scrollbar{display:none;}
+#si{
+  flex-shrink:0;width:190px;
+  background:var(--card);border:1px solid var(--border);
+  color:var(--text);padding:5px 11px;border-radius:6px;
+  font-family:'DM Sans',sans-serif;font-size:0.78rem;outline:none;transition:border-color .2s;
+}
+#si:focus{border-color:var(--gold);}
+#si::placeholder{color:var(--muted);}
+.sep{width:1px;height:20px;background:var(--border);flex-shrink:0;}
+.fb{
+  flex-shrink:0;background:var(--card);border:1px solid var(--border);
+  color:var(--muted);padding:4px 11px;border-radius:6px;
+  font-size:0.7rem;cursor:pointer;font-family:'DM Sans',sans-serif;
+  transition:all .15s;white-space:nowrap;
+}
+.fb.on,.fb:hover{background:var(--gold);color:var(--night);border-color:var(--gold);font-weight:600;}
+.fb.open-btn.on,.fb.open-btn:hover{background:#3cc878;color:#0a1a10;border-color:#3cc878;}
+#clock{flex-shrink:0;font-size:0.7rem;color:var(--muted);background:var(--card);border:1px solid var(--border);padding:4px 10px;border-radius:6px;font-variant-numeric:tabular-nums;letter-spacing:.04em;display:none;}
+#clock.vis{display:block;}
+
+/* MAP — fixed height, full width */
+#mapwrap{
+  width:100%;height:420px;flex-shrink:0;position:relative;
+}
+#map{width:100%;height:100%;}
+
+/* LEGEND over map */
+#lg{
+  position:absolute;bottom:12px;left:10px;z-index:400;
+  background:rgba(11,11,22,.88);border:1px solid var(--border);
+  border-radius:9px;padding:8px 11px;font-size:0.67rem;
+  backdrop-filter:blur(6px);pointer-events:none;
+}
+#lg h4{color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;font-size:0.6rem;}
+.li{display:flex;align-items:center;gap:5px;color:var(--text);margin-bottom:2px;}
+.ld{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* DETAIL PANEL — over map */
+#dp{
+  position:absolute;bottom:0;left:0;right:0;
+  background:rgba(11,11,24,.97);border-top:1px solid var(--border);
+  backdrop-filter:blur(10px);padding:14px 16px;
+  transform:translateY(110%);transition:transform .28s cubic-bezier(.4,0,.2,1);
+  z-index:500;max-height:75%;overflow-y:auto;
+}
+#dp.open{transform:translateY(0);}
+#dp::-webkit-scrollbar{width:3px;}
+#dp::-webkit-scrollbar-thumb{background:var(--border);}
+.dc{position:absolute;top:10px;right:10px;background:var(--card);border:1px solid var(--border);color:var(--muted);width:25px;height:25px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .15s;}
+.dc:hover{color:var(--text);border-color:var(--gold);}
+.dcat{font-size:0.64rem;letter-spacing:.12em;text-transform:uppercase;font-weight:600;margin-bottom:4px;}
+.dname{font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;line-height:1.3;padding-right:30px;margin-bottom:9px;}
+.dmeta{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:9px;}
+.mi{background:var(--card);border:1px solid var(--border);border-radius:7px;padding:6px 9px;}
+.ml{font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1px;}
+.mv{font-size:0.78rem;font-weight:600;}
+.da{display:flex;gap:7px;background:var(--card);border:1px solid var(--border);border-radius:7px;padding:7px 9px;margin-bottom:9px;font-size:0.78rem;}
+.dd{font-size:0.78rem;color:#a09ab0;line-height:1.55;margin-bottom:9px;}
+.dl{display:inline-block;background:var(--gold);color:var(--night);font-weight:700;padding:7px 18px;border-radius:7px;text-decoration:none;font-size:0.78rem;}
+.dl:hover{opacity:.85;}
+
+/* LIST */
+#listwrap{
+  flex:1;min-height:0;overflow-y:auto;
+  background:var(--panel);border-top:1px solid var(--border);
+}
+#listwrap::-webkit-scrollbar{width:4px;}
+#listwrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+#listhead{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 16px;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:var(--panel);z-index:10;
+}
+#listhead h2{font-family:'Playfair Display',serif;font-size:0.88rem;color:var(--gold);font-weight:700;}
+#listhead p{font-size:0.67rem;color:var(--muted);}
+
+/* Grid of cards */
+#el{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  gap:6px;
+  padding:10px 12px;
+}
+
+.ec{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:8px;padding:10px 12px;
+  cursor:pointer;transition:all .15s;
+  position:relative;overflow:hidden;
+}
+.ec::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--cc,var(--gold));border-radius:3px 0 0 3px;}
+.ec:hover,.ec.on{border-color:var(--cc,var(--gold));background:#1e1e32;}
+.et{font-size:0.66rem;font-weight:600;color:var(--cc,var(--gold));letter-spacing:.04em;margin-bottom:2px;}
+.en{font-size:0.8rem;font-weight:500;line-height:1.3;color:var(--text);margin-bottom:3px;}
+.ep{font-size:0.69rem;color:var(--muted);}
+.ebs{display:flex;gap:3px;flex-wrap:wrap;margin-top:5px;}
+.bx{font-size:0.61rem;padding:1px 6px;border-radius:4px;border:1px solid;}
+.bf{color:#3cc878;border-color:rgba(60,200,120,.3);background:rgba(60,200,120,.08);}
+.br{color:var(--rose);border-color:rgba(224,90,110,.3);background:rgba(224,90,110,.08);}
+.bk{color:var(--teal);border-color:rgba(58,204,200,.3);background:rgba(58,204,200,.08);}
+.nores{text-align:center;padding:40px 16px;color:var(--muted);font-size:0.85rem;grid-column:1/-1;}
+
+/* Leaflet overrides */
+.leaflet-popup-content-wrapper{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:9px;font-family:'DM Sans',sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.6);}
+.leaflet-popup-tip{background:var(--panel);}
+.leaflet-popup-content{margin:9px 13px;font-size:0.78rem;}
+.leaflet-control-zoom a{background:var(--panel)!important;color:var(--text)!important;border-color:var(--border)!important;}
+.leaflet-control-zoom a:hover{background:var(--card)!important;}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div class="hstar">✦</div>
+  <div class="htitle">
+    <h1>Noc Muzeów 2026 – Wrocław</h1>
+    <p>16 maja 2026 · sobota · wstęp wolny</p>
+  </div>
+  <div id="cnt">112 atrakcji</div>
+</div>
+
+<div id="tbr">
+  <input type="text" id="si" placeholder="🔍 Szukaj nazwy lub adresu...">
+  <div class="sep"></div>
+  <button class="fb on" data-c="all">Wszystkie</button>
+  <button class="fb" data-c="muzeum">🏛 Muzea</button>
+  <button class="fb" data-c="galeria">🖼 Galerie</button>
+  <button class="fb" data-c="nauka">🔬 Nauka</button>
+  <button class="fb" data-c="kultura">🎭 Kultura</button>
+  <button class="fb" data-c="kino">🎬 Kino</button>
+  <div class="sep"></div>
+  <button class="fb open-btn" id="openBtn">🟢 Otwarte teraz</button>
+  <span id="clock"></span>
+</div>
+
+<div id="mapwrap">
+  <div id="map"></div>
+  <div id="lg">
+    <h4>Kategorie</h4>
+    <div class="li"><div class="ld" style="background:#f0c040"></div>Muzea</div>
+    <div class="li"><div class="ld" style="background:#e8963a"></div>Galerie</div>
+    <div class="li"><div class="ld" style="background:#3accc8"></div>Nauka</div>
+    <div class="li"><div class="ld" style="background:#a78bfa"></div>Kultura</div>
+    <div class="li"><div class="ld" style="background:#e05a6e"></div>Kino/Teatr</div>
+  </div>
+  <div id="dp">
+    <button class="dc" id="dclose">✕</button>
+    <div id="dcontent"></div>
+  </div>
+</div>
+
+<div id="listwrap">
+  <div id="listhead">
+    <h2>Program wydarzeń</h2>
+    <p id="sbc">112 wydarzeń · sortowane wg godziny</p>
+  </div>
+  <div id="el"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const CC={'muzeum':'#f0c040','galeria':'#e8963a','nauka':'#3accc8','kultura':'#a78bfa','kino':'#e05a6e'};
+const CL={'muzeum':'Muzea','galeria':'Galerie','nauka':'Nauka/Edukacja','kultura':'Kultura/Inne','kino':'Kino/Teatr'};
+
+const EV=[
+ {id:1,n:"Muzeum Narodowe we Wrocławiu",p:"pl. Powstańców Warszawy 5",t:"18:00",e:"24:00",c:"muzeum",r:false,k:false,lat:51.1090,lng:17.0410,d:"Gmach Główny MNWr – bezpłatne zwiedzanie wystaw stałych i czasowych.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409417-noc-muzeow-2026-muzeum-narodowe"},
+ {id:2,n:"Panorama Racławicka",p:"ul. Purkyniego 11",t:"16:00",e:"22:00",c:"muzeum",r:true,k:false,lat:51.1074,lng:17.0438,d:"Słynna panorama bitwy pod Racławicami. ⚠ Wymagana rezerwacja.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409424-noc-muzeow-2026-muzeum-panorama-raclawicka-oddzial-muzeum-narodowego-we-wroclawiu"},
+ {id:3,n:"Pawilon Czterech Kopuł – MSW",p:"ul. Purkyniego 1",t:"21:00",e:"24:00",c:"muzeum",r:false,k:false,lat:51.1072,lng:17.0430,d:"Wystawa «Gdzie jest Twój zachód słońca?» – nocne godziny.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409459-noc-muzeow-2026-pawilon-czterech-kopul-muzeum-sztuki-wspolczesnej-gdzie-jest-twoj-zachod-slonca"},
+ {id:4,n:"Muzeum Etnograficzne",p:"ul. Traugutta 111",t:"18:00",e:"23:00",c:"muzeum",r:false,k:true,lat:51.1105,lng:17.0395,d:"Ekspozycje kultury ludowej i rzemiosła.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409428-noc-muzeow-2026-muzeum-etnograficzne"},
+ {id:5,n:"Pałac Królewski – Muzeum Historyczne",p:"ul. Kazimierza Wielkiego 35",t:"18:30",e:"23:00",c:"muzeum",r:false,k:false,lat:51.1103,lng:17.0367,d:"Muzeum Historyczne + Muzeum Sztuki Medalierskiej. Barokowe wnętrza.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409491-noc-muzeow-w-palacu-krolewskim"},
+ {id:6,n:"Arsenał Miejski – Muzeum Militariów i Archeologiczne",p:"ul. Cieszyńskiego 9",t:"18:30",e:"23:00",c:"muzeum",r:false,k:false,lat:51.1113,lng:17.0352,d:"Broń, zbroje i zabytki prehistoryczne.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409492-noc-muzeow-w-arsenale-miejskim"},
+ {id:7,n:"Stary Ratusz – Muzeum Sztuki Mieszczańskiej",p:"Rynek 50",t:"18:30",e:"23:00",c:"muzeum",r:false,k:false,lat:51.1095,lng:17.0310,d:"W sercu Rynku wrocławskiego.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409493-noc-muzeow-w-starym-ratuszu"},
+ {id:8,n:"Muzeum Architektury we Wrocławiu",p:"ul. Bernardyńska 5",t:"18:00",e:"23:00",c:"muzeum",r:false,k:false,lat:51.1090,lng:17.0336,d:"Historia architektury i urbanistyki.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409856-noc-muzeow-2026-w-muzeum-architektury-we-wroclawiu"},
+ {id:9,n:"Centrum Historii Zajezdnia",p:"ul. Grabiszyńska 184",t:"18:00",e:"23:00",c:"muzeum",r:false,k:true,lat:51.1006,lng:16.9992,d:"Historia Wrocławia w dawnej zajezdni tramwajowej.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409615-noc-muzeow-2026-centrum-historii-zajezdnia"},
+ {id:10,n:"Muzeum Pana Tadeusza",p:"Rynek 6",t:"17:00",e:"23:00",c:"muzeum",r:false,k:false,lat:51.1096,lng:17.0293,d:"Rękopis «Pana Tadeusza» Adama Mickiewicza.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409567-noc-muzeow-2026-muzeum-pana-tadeusza-oddzial-zakladu-narodowego-im-ossolinskich"},
+ {id:11,n:"Ossolineum",p:"ul. Szewska 37",t:"17:00",e:"22:00",c:"muzeum",r:false,k:false,lat:51.1071,lng:17.0263,d:"Zakład Narodowy im. Ossolińskich – rękopisy i starodruki.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409392-noc-muzeow-2026-ossolineum"},
+ {id:12,n:"Muzeum Współczesne Wrocław (MWW)",p:"pl. Strzegomski 2a",t:"18:00",e:"22:00",c:"muzeum",r:false,k:false,lat:51.1087,lng:17.0352,d:"Sztuka współczesna, wystawy i instalacje.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409398-noc-muzeow-2026-muzeum-wspolczesne-wroclaw"},
+ {id:13,n:"Muzeum Teatru im. H. Tomaszewskiego",p:"ul. Zapolskiej 3",t:"18:00",e:"23:00",c:"muzeum",r:false,k:false,lat:51.1068,lng:17.0295,d:"Historia wrocławskiego teatru i pantomimy.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409489-noc-muzeow-w-muzeum-teatru-im-henryka-tomaszewskiego"},
+ {id:14,n:"Hydropolis – Centrum Wiedzy o Wodzie",p:"ul. Na Grobli 17",t:"19:00",e:"23:00",c:"nauka",r:false,k:true,lat:51.1165,lng:17.0512,d:"Multimedialne centrum wiedzy o wodzie.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409575-noc-muzeow-2026-zabytkowy-kompleks-na-grobli-hydropolis"},
+ {id:15,n:"Muzeum Poczty i Telekomunikacji",p:"ul. Krasińskiego 1",t:"16:00",e:"22:00",c:"nauka",r:false,k:true,lat:51.1106,lng:17.0340,d:"Historia komunikacji od listów do telekomunikacji.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409611-noc-muzeow-2026-muzeum-poczty-i-telekomunikacji-we-wroclawiu"},
+ {id:16,n:"Muzeum Geologiczne UWr",p:"ul. Cybulskiego 30",t:"14:00",e:"21:00",c:"nauka",r:false,k:true,lat:51.1144,lng:17.0253,d:"Minerały, skały i skamieniałości.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409624-noc-muzeow-2026-muzeum-geologiczne"},
+ {id:17,n:"Muzeum Mineralogiczne UWr",p:"ul. Cybulskiego 30",t:"12:00",e:"20:00",c:"nauka",r:false,k:true,lat:51.1146,lng:17.0255,d:"Zbiory mineralogiczne im. K. Maślankiewicza.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409983-noc-muzeow-2026-muzeum-mineralogiczne-uniwersytetu-wroclawskiego-im-k-maslankiewicza"},
+ {id:18,n:"Muzeum Przyrodnicze UWr",p:"ul. Sienkiewicza 21",t:"18:00",e:"23:00",c:"nauka",r:false,k:true,lat:51.1154,lng:17.0332,d:"Okazy fauny, flory i paleontologii.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409776-noc-muzeow-2026-muzeum-przyrodnicze-uniwersytetu-wroclawskiego"},
+ {id:19,n:"Muzeum Medycyny Sądowej UM",p:"ul. Mikulicza-Radeckiego 4",t:"18:00",e:"22:00",c:"nauka",r:false,k:false,lat:51.1148,lng:17.0229,d:"Unikalna kolekcja eksponatów medycyny sądowej.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409621-noc-muzeow-2026-muzeum-medycyny-sadowej-uniwersytet-medyczny-we-wroclawiu"},
+ {id:20,n:"Muzeum Anatomii UM",p:"ul. Chałubińskiego 6a",t:"18:00",e:"22:00",c:"nauka",r:false,k:false,lat:51.1150,lng:17.0231,d:"Preparaty anatomiczne i historia medycyny.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409622-noc-muzeow-2026-muzeum-anatomii-uniwersytet-medyczny-we-wroclawiu"},
+ {id:21,n:"Muzeum Mulaży Dermatologicznych UM",p:"ul. Chałubińskiego 1",t:"18:00",e:"22:00",c:"nauka",r:false,k:false,lat:51.1152,lng:17.0233,d:"Woskowe odlewy skóry – unikat w Polsce.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409623-noc-muzeow-2026-muzeum-mulazy-dermatologicznych-uniwersytet-medyczny-we-wroclawiu"},
+ {id:22,n:"Muzeum Farmacji",p:"ul. Łaciarska 6",t:"13:00",e:"21:00",c:"nauka",r:false,k:false,lat:51.1098,lng:17.0320,d:"Dom Śląskiego Aptekarza – historia farmacji.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1410226-noc-muzeow-2026-muzeum-farmacji"},
+ {id:23,n:"Aula Leopoldyńska – Muzeum UWr",p:"pl. Uniwersytecki 1",t:"18:00",e:"23:00",c:"nauka",r:false,k:false,lat:51.1140,lng:17.0309,d:"«Barok, światło i wiedza» – nocne zwiedzanie najpiękniejszej sali Wrocławia.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409950-aula-leopoldynska-noca-barok-swiatlo-i-wiedza"},
+ {id:24,n:"Muzeum Wojsk Inżynieryjnych i Chemicznych",p:"ul. Obornicka 108",t:"18:00",e:"19:00",c:"nauka",r:false,k:false,lat:51.0845,lng:17.0618,d:"⚠ Kończy się o 19:00! Technika wojskowa.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1410083-noc-muzeow-2026-w-muzeum-wojsk-inzynieryjnych-i-chemicznych"},
+ {id:25,n:"Galeria BB – Koniki Beskidzkie (Zbigniew Bury)",p:"ul. Jatki 3-6",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1092,lng:17.0297,d:"Wernisaż wystawy «Koniki Beskidzkie».",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409603-noc-muzeow-2026-koniki-beskidzkie-zbigniew-bury"},
+ {id:26,n:"Galeria Tkacka Na Jatkach",p:"ul. Jatki",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1093,lng:17.0298,d:"«Nadzieja, która sięga poza kres» – wernisaż.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409920-nadzieja-ktora-siega-poza-kres"},
+ {id:27,n:"NOC MUZEÓW – Podwórko Ruska 46",p:"ul. Ruska 46",t:"18:00",e:"24:00",c:"galeria",r:false,k:false,lat:51.1082,lng:17.0244,d:"Kultowe artystyczne podwórko – wernisaże, performance, instalacje. Centrum alternatywnej sztuki Nocy Muzeów.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409695-noc-muzeow-na-podworku-ruska-46"},
+ {id:28,n:"GUA Collective (Ruska 46a, IV p.)",p:"ul. Ruska 46a",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1083,lng:17.0245,d:"Kolektyw artystyczny – wystawy i instalacje.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409601-noc-muzeow-2026-gua-collective"},
+ {id:29,n:"IP Studio",p:"ul. Ruska 46a",t:"12:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1081,lng:17.0243,d:"Pracownia artystyczna – otwarte drzwi od południa.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409447-noc-muzeow-2026-ip-studio"},
+ {id:30,n:"Galeria Miejska – Pracownia",p:"ul. Świdnicka 2-4",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1089,lng:17.0278,d:"Wystawy wrocławskich artystów.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409967-noc-muzeow-2026-galeria-miejska-pracownia"},
+ {id:31,n:"Galeria Sztuki Tętno",p:"ul. Świdnicka 28",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1080,lng:17.0292,d:"Malarstwo i rzeźba.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409547-noc-muzeow-2026-galeria-sztuki-tetno"},
+ {id:32,n:"Galeria Arttrakt – «Czysta rdza»",p:"ul. Świdnicka 8",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1086,lng:17.0283,d:"Hubert Bujak i Zdzisław Nitka: «Czysta rdza».",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409450-noc-muzeow-2026-galeria-arttrakt-wystawa-pt-czysta-rdza-hubert-bujak-zdzislaw-nitka"},
+ {id:33,n:"Galeria u Kosałki – butoh «Migotanie w przedsionku»",p:"ul. Świdnicka 32a",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1075,lng:17.0294,d:"Wystawa + performance butoh.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409625-noc-muzeow-2026-wystawa-butoh-performance-migotanie-w-przedsionku-galeria-u-kosalki"},
+ {id:34,n:"Galeria PIECOWNIA – «Obrazy zwierciadlane»",p:"ul. Świdnicka 22",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1084,lng:17.0290,d:"Fotografia Julii Miler i Roberta Błaszczaka.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409606-noc-muzeow-2026-obrazy-zwierciadlane-wystawa-fotografii-julii-miler-i-roberta-blaszczaka"},
+ {id:35,n:"Galeria MOYA – Madonny Chiaroscuro",p:"ul. Świdnicka 19",t:"17:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1088,lng:17.0286,d:"Pokazy ceramiki i szkła artystycznego.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409577-noc-muzeow-2026-madonny-chiaroscuro-galeria-moya-pokazy-ceramika-i-szklo"},
+ {id:36,n:"BWA Wrocław Główny",p:"ul. Świdnicka 2-4",t:"16:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1103,lng:17.0302,d:"Wystawa «Dark Paradise» i nocny program.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410414-noc-muzeow-2026-galeria-bwa-wroclaw-glowny"},
+ {id:37,n:"Galeria SIC! BWA – «Tam gdzie nie sięga światło»",p:"ul. Ruska 46c",t:"16:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1080,lng:17.0246,d:"Lulu MacDonald – wystawa i oprowadzanie kuratorskie.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409658-noc-muzeow-2026-wystawa-tam-gdzie-nie-siega-swiatlo-lulu-macdonald"},
+ {id:38,n:"Żyjnia BWA – wystawa i potańcówka",p:"ul. Ruska 46b",t:"16:00",e:"24:00",c:"galeria",r:false,k:false,lat:51.1079,lng:17.0247,d:"Wystawa + potańcówka – sztuka i zabawa.",url:"https://www.wroclaw.pl/go/wydarzenia/rozrywka/1409660-noc-muzeow-2026-wystawa-i-potancowka-w-zyjni"},
+ {id:39,n:"Studio BWA Wrocław",p:"ul. Ruska 46",t:"16:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1078,lng:17.0248,d:"Studio artystyczne BWA.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409868-noc-muzeow-2026-studio-bwa-wroclaw"},
+ {id:40,n:"Galeria Entropia – «Piekło. Ósmy krąg»",p:"pl. Kościuszki 9/10",t:"16:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1076,lng:17.0276,d:"Dantejskie piekło we współczesnym kontekście.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409659-noc-muzeow-galeria-entropia-pieklo-osmy-krag-oszustwo"},
+ {id:41,n:"OPP – «Pomiędzy dyscypliną a delikatnością»",p:"ul. Traugutta 19",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1115,lng:17.0360,d:"Otwarte Pracownie Plastyczne Gepperta.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409607-noc-muzeow-2026-pomiedzy-dyscyplina-a-delikatnoscia-wystawa-opp"},
+ {id:42,n:"Galeria Geppart ASP – «Strefa napięcia»",p:"pl. Polski 3/4",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1163,lng:17.0302,d:"Kuratorskie oprowadzanie po wystawie.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410035-noc-muzeow-oprowadzanie-kuratorskie-po-wystawie-strefa-napiecia"},
+ {id:43,n:"Galeria Toy Piano – «Pomieszanie Zmysłów»",p:"ul. Świdnicka 40",t:"21:30",e:"24:00",c:"galeria",r:true,k:false,lat:51.1072,lng:17.0297,d:"Seans sensoryczny – muzyka i sztuka wizualna. ⚠ Rezerwacja wskazana.",url:"https://www.wroclaw.pl/go/wydarzenia/muzyka/1409653-galeria-toy-piano-pomieszanie-zmyslow-seans-sensoryczny"},
+ {id:44,n:"Krupa Art Foundation",p:"ul. Lotnicza 22",t:"18:25",e:"23:00",c:"galeria",r:false,k:false,lat:51.0970,lng:16.9520,d:"Prywatna fundacja sztuki.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409965-noc-muzeow-2026-w-krupa-art-foundation"},
+ {id:45,n:"Galeria Platon – «W poszukiwaniu utraconej zieleni»",p:"ul. Świdnicka 36",t:"18:30",e:"23:00",c:"galeria",r:false,k:false,lat:51.1074,lng:17.0292,d:"Marian Waldemar Kuczma.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409540-noc-muzeow-2026-galeria-platon-w-poszukiwaniu-utraconej-zieleni-wystawa-mariana-waldemara-kuczmy"},
+ {id:46,n:"Galeria ArtBrut – ZWIERZĘCE_INSTYNKTY!",p:"ul. Świdnicka 2b",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1085,lng:17.0281,d:"Wydarzenie towarzyszące wystawie ZWIERZĘCE_INSTYNKTY!",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409753-noc-muzeow-2026-galeria-artbrut-wydarzenie-towarzyszace-wystawie-zwierzece-instynkty"},
+ {id:47,n:"Galeria Fotografii ZPAF – «Paradoks powtórzenia»",p:"ul. Świdnicka 8b",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1083,lng:17.0284,d:"Sławomir Kuszczak – fotografia.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410087-noc-muzeow-2026-slawomir-kuszczak-paradoks-powtorzenia"},
+ {id:48,n:"Galeria Kowalscy – «Wrocław Inaczej»",p:"ul. Jatki 15",t:"16:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1094,lng:17.0299,d:"Emocjonalny portret miasta.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410072-noc-muzeow-2026-wroclaw-inaczej-emocjonalny-portret-miasta-w-galerii-kowalscy-jatki-15"},
+ {id:49,n:"Fine Art Gallery – «Struktury i kontrasty»",p:"ul. Świdnicka 4",t:"17:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1088,lng:17.0279,d:"Otwarcie wystawy ceramiki.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410218-noc-muzeow-2026-struktury-i-kontrasty-unikatowe-swiaty-ceramiki-otwarcie-wystawy"},
+ {id:50,n:"NIEGALERIA – Wincenty Dublański «Efekt motyla»",p:"ul. Świdnicka 10",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1085,lng:17.0282,d:"«Efekt motyla – Praeda Lucis».",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1410066-noc-muzeow-2026-niegaleria-wincenty-dublanski-efekt-motyla-praeda-lucis"},
+ {id:51,n:"Wrocławska Galeria Polskiego Plakatu",p:"ul. Świdnicka 6",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1086,lng:17.0280,d:"Wystawa plakatów Pawła Króla.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410071-noc-muzeow-2026-wystawa-plakatow-pawla-krola-w-galerii-polskiego-plakatu"},
+ {id:52,n:"Galeria Kanał",p:"Śródmieście",t:"21:00",e:"24:00",c:"galeria",r:false,k:false,lat:51.1095,lng:17.0320,d:"Galeria w wyjątkowej przestrzeni – nocne otwarcie.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410207-noc-muzeow-2026-galeria-kanal"},
+ {id:53,n:"mia ART GALLERY",p:"pl. Solny 4",t:"19:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1098,lng:17.0293,d:"Galeria sztuki współczesnej na Placu Solnym.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409699-noc-muzeow-mia-art-gallery"},
+ {id:54,n:"TYC ART – «Szkła unikatowe»",p:"ul. Świdnicka 1",t:"19:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1090,lng:17.0275,d:"Mak-Sobota & Sobota – unikatowe szkła artystyczne.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410079-noc-muzeow-2026-mak-sobota-sobota-szkla-unikatowe"},
+ {id:55,n:"Galeria OKO",p:"ul. Świdnicka 14",t:"20:00",e:"24:00",c:"galeria",r:false,k:false,lat:51.1083,lng:17.0286,d:"Nocne otwarcie – sztuka współczesna.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409664-noc-muzeow-2026-galeria-oko"},
+ {id:56,n:"Galeria M – MATECZNIK",p:"ul. Świdnicka 5",t:"12:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1088,lng:17.0285,d:"Małgorzata Malwina Niespodziewana.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409446-noc-muzeow-2026-w-galerii-m-matecznik-malgorzaty-malwiny-niespodziewanej"},
+ {id:57,n:"Galeria Serwis",p:"ul. Świdnicka 9",t:"16:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1086,lng:17.0284,d:"Nocny program artystyczny.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410316-noc-muzeow-2026-galeria-serwis"},
+ {id:58,n:"Galeria Versus Studio & Art Gallery",p:"ul. Świdnicka 23",t:"12:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1081,lng:17.0289,d:"Otwarcie od południa.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410297-noc-muzeow-2026-versus-studio-art-gallery"},
+ {id:59,n:"Galeria Neon ASP Wrocław",p:"pl. Polski 3",t:"16:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1160,lng:17.0305,d:"Galeria Akademii Sztuk Pięknych.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410533-noc-muzeow-2026-galeria-neon"},
+ {id:60,n:"Galeria Neonów – Pracownia Beaty Rojek",p:"ul. Świdnicka 20",t:"18:30",e:"23:00",c:"galeria",r:false,k:false,lat:51.1082,lng:17.0291,d:"Pracownia i galeria neonów.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409703-noc-muzeow-2026-pracownia-beaty-rojek"},
+ {id:61,n:"Centrum Sztuki WRO",p:"ul. Widok 7",t:"12:00",e:"22:00",c:"galeria",r:false,k:false,lat:51.1099,lng:17.0302,d:"WRO Art Center – sztuka cyfrowa i wideo.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409598-noc-muzeow-2026-centrum-sztuki-wro"},
+ {id:62,n:"MiserArt",p:"ul. Świdnicka 31",t:"16:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1076,lng:17.0295,d:"Galeria MiserArt – nocne otwarcie.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410090-noc-muzeum-2026-miserart"},
+ {id:63,n:"Macondo – Galeria, Kawiarnia, Księgarnia",p:"ul. Świdnicka 43",t:"12:00",e:"23:00",c:"galeria",r:false,k:true,lat:51.1070,lng:17.0299,d:"Cały dzień otwarty.",url:"https://www.wroclaw.pl/go/wydarzenia/rozrywka/1410377-noc-muzeow-2026-macondo"},
+ {id:64,n:"Stowarzyszenie Kolekcjonerów",p:"ul. Świdnicka 52",t:"12:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1068,lng:17.0300,d:"Numizmatyka, filatelistyka i inne kolekcje.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410308-noc-muzeow-2026-stowarzyszenie-kolekcjonerow"},
+ {id:65,n:"MartiCeramics Studio Gallery",p:"ul. Świdnicka 50",t:"12:00",e:"22:00",c:"galeria",r:false,k:true,lat:51.1069,lng:17.0301,d:"Ceramika artystyczna.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410301-noc-muzeow-2026-marticeramics-studio-gallery"},
+ {id:66,n:"Wrocławski Klub Formaty",p:"ul. Świdnicka 53",t:"20:00",e:"24:00",c:"galeria",r:false,k:false,lat:51.1071,lng:17.0302,d:"Nocne otwarcie z programem artystycznym.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409652-noc-muzeow-2026-wroclawski-klub-formaty"},
+ {id:67,n:"Otwarta pracownia Butkiewicz & Raczkowski",p:"ul. Ruska 46",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1082,lng:17.0241,d:"Otwarta pracownia artystyczna.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410390-noc-muzeow-2026-otwarta-pracownia-piotr-butkiewicz-i-artur-raczkowski-utraberg"},
+ {id:68,n:"Pracownia Mariusza Mikołajka",p:"ul. Ruska 46",t:"18:00",e:"23:00",c:"galeria",r:false,k:false,lat:51.1082,lng:17.0242,d:"Otwarta pracownia plastyczna.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410395-noc-muzeow-2026-pracownia-mariusza-mikolajka"},
+ {id:69,n:"CK Nowy Pafawag – Karolina Gabryś «Linia prosta»",p:"ul. Żmigrodzka 41-49",t:"18:00",e:"23:00",c:"kultura",r:false,k:false,lat:51.1285,lng:17.0247,d:"«Linia prosta – złudzenie czy fundament?»",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409960-karolina-gabrys-linia-prosta-zludzenie-czy-fundament-noc-muzeow-2026"},
+ {id:70,n:"Zajezdnia Tramwajowa Borek",p:"ul. Borowska 116",t:"18:00",e:"23:00",c:"kultura",r:false,k:true,lat:51.0870,lng:17.0194,d:"Historyczna zajezdnia tramwajowa – tabor i wystawy.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409951-noc-muzeow-2026-na-zajezdni-tramwajowej-borek"},
+ {id:71,n:"Dolnośląski Urząd Wojewódzki",p:"pl. Powstańców Warszawy 1",t:"19:00",e:"22:00",c:"kultura",r:false,k:false,lat:51.1101,lng:17.0387,d:"Zwiedzanie historycznego gmachu DUW.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409610-noc-muzeow-2026-dolnoslaski-urzad-wojewodzki"},
+ {id:72,n:"Nowy Ratusz – siedziba Prezydenta Wrocławia",p:"Sukiennice",t:"16:30",e:"22:00",c:"kultura",r:false,k:false,lat:51.1096,lng:17.0305,d:"Rzadka okazja zwiedzenia reprezentacyjnych wnętrz.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1410188-noc-muzeow-2026-nowy-ratusz-siedziba-prezydenta-i-rady-miejskiej-wroclawia"},
+ {id:73,n:"Ośrodek Postaw Twórczych Zamek",p:"ul. Świdnicka 8a",t:"11:00",e:"22:00",c:"kultura",r:false,k:true,lat:51.1087,lng:17.0276,d:"Warsztaty, wystawy, spektakle dla całej rodziny.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409402-noc-muzeow-2026-w-osrodku-postaw-tworczych-zamek"},
+ {id:74,n:"CK Agora – ZATUSZOWANI + Piknik Rodzinny",p:"ul. Klimasa 16",t:"17:30",e:"23:00",c:"kultura",r:false,k:true,lat:51.1290,lng:16.9890,d:"Tatuaż, sztuka i zabawa – wystawa + piknik rodzinny.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409486-zatuszowani-noc-muzeow-2026-w-ck-agora"},
+ {id:75,n:"Concordia Design Wrocław",p:"ul. Wyspa Słodowa 7",t:"16:00",e:"23:00",c:"kultura",r:false,k:false,lat:51.1190,lng:17.0270,d:"Centrum designu – wystawy i warsztaty.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409580-noc-muzeow-2026-concordia-design-wroclaw"},
+ {id:76,n:"Piekarnia Żywa Kultura (Instytut Grotowskiego)",p:"ul. Jaracza 27",t:"16:00",e:"23:00",c:"kultura",r:false,k:false,lat:51.1076,lng:17.0278,d:"Centrum performatywne Instytutu Grotowskiego.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409698-noc-muzeow-2026-w-piekarni-zywej-kulturze"},
+ {id:77,n:"Teatr Dialogu",p:"ul. Komuny Paryskiej 42",t:"19:00",e:"23:00",c:"kultura",r:false,k:false,lat:51.1048,lng:17.0351,d:"Nocny spektakl i oprowadzanie.",url:"https://www.wroclaw.pl/go/wydarzenia/teatr/1409531-noc-muzeow-2026-teatr-dialogu"},
+ {id:78,n:"Muzeum Odry FOMT",p:"ul. Wybrzeże Wyspiańskiego",t:"18:00",e:"22:00",c:"kultura",r:false,k:false,lat:51.1165,lng:17.0460,d:"Historia rzeki Odry i infrastruktury wodnej.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409612-noc-muzeow-2026-muzeum-odry-fomt"},
+ {id:79,n:"Akademia Sztuk Pięknych – budynek główny",p:"pl. Polski 3/4",t:"13:00",e:"22:00",c:"kultura",r:false,k:false,lat:51.1163,lng:17.0302,d:"Otwarte pracownie i wystawy ASP.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1410033-noc-muzeow-akademia-sztuk-pieknych-im-e-gepperta-we-wroclawiu"},
+ {id:80,n:"MaluMika – Warsztaty ceramiki",p:"ul. Świdnicka 20a",t:"17:30",e:"22:00",c:"kultura",r:false,k:true,lat:51.1082,lng:17.0290,d:"Otwarte warsztaty malowania ceramiki.",url:"https://www.wroclaw.pl/go/wydarzenia/rozrywka/1409554-noc-muzeow-2026-otwarte-warsztaty-malowania-ceramiki-w-malumice"},
+ {id:81,n:"MovieGate – Galeria Sztuki Filmowej",p:"ul. Świdnicka 40a",t:"20:00",e:"24:00",c:"kultura",r:false,k:false,lat:51.1070,lng:17.0296,d:"Podziemna galeria sztuki filmowej.",url:"https://www.wroclaw.pl/go/wydarzenia/rozrywka/1410078-noc-muzeow-2026-w-podziemnym-klimacie-moviegate"},
+ {id:82,n:"Kościół Dominikanów – Klasztor św. Wojciecha",p:"pl. Dominikański 2",t:"20:00",e:"23:00",c:"kultura",r:false,k:false,lat:51.1114,lng:17.0313,d:"Nocne otwarcie klasztoru dominikanów.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1410195-noc-muzeow-2026-dominikanie-we-wroclawiu"},
+ {id:83,n:"Kościół ewangelicki św. Krzysztofa",p:"pl. św. Krzysztofa 1",t:"18:00",e:"23:00",c:"kultura",r:false,k:false,lat:51.1108,lng:17.0354,d:"Historia i architektura kościoła.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1410091-noc-muzeow-2026-kosciol-ewangelicki-sw-krzysztofa"},
+ {id:84,n:"Arche Klasztor Wrocław",p:"ul. Augustyńska 2",t:"17:00",e:"23:00",c:"kultura",r:false,k:false,lat:51.1119,lng:17.0384,d:"Tajemnice historycznego klasztoru.",url:"https://www.wroclaw.pl/go/wydarzenia/rozrywka/1409647-noc-muzeow-2026-poznaj-tajemnice-arche-klasztor-wroclaw"},
+ {id:85,n:"Społeczne Muzeum Militarne",p:"ul. Pełczyńska 33",t:"16:00",e:"22:00",c:"kultura",r:false,k:true,lat:51.1208,lng:17.0195,d:"Mundury, uzbrojenie, odznaczenia.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409581-spoleczne-muzeum-militarne-w-noc-muzeow-2026"},
+ {id:86,n:"IPN Wrocław",p:"ul. Sołtysowicka 21a",t:"18:00",e:"22:00",c:"kultura",r:false,k:false,lat:51.1332,lng:17.0488,d:"Historia Polski – zbiory archiwalne IPN.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409872-noc-muzeow-2026-w-oddziale-ipn-wroclaw"},
+ {id:87,n:"Dom Edyty Stein",p:"ul. Nowowiejska 38",t:"16:00",e:"22:00",c:"kultura",r:false,k:false,lat:51.1136,lng:17.0350,d:"Dom urodzenia Edyty Stein – filozofa, mistyczki i świętej.",url:"https://www.wroclaw.pl/go/wydarzenia/rozrywka/1409905-noc-muzeow-2026-w-domu-edyty-stein"},
+ {id:88,n:"Golgota Wschodu – wystawa",p:"ul. Szewska 1",t:"16:00",e:"22:00",c:"kultura",r:false,k:false,lat:51.1070,lng:17.0267,d:"Wystawa upamiętniająca ofiary Kresów Wschodnich.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409727-noc-muzeow-2026-na-wystawie-golgota-wschodu"},
+ {id:89,n:"Odra Centrum",p:"ul. Wybrzeże Conrada-Korzeniowskiego",t:"12:00",e:"22:00",c:"kultura",r:false,k:true,lat:51.1152,lng:17.0418,d:"Centrum kulturalne przy Odrze.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1410386-noc-muzeow-2026-odra-centrum"},
+ {id:90,n:"Otwarta Przestrzeń Kultury",p:"ul. Komuny Paryskiej 40",t:"17:00",e:"23:00",c:"kultura",r:false,k:false,lat:51.1050,lng:17.0352,d:"Nocny program kulturalny.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1410050-noc-muzeow-2026-otwarta-przestrzen-kultury"},
+ {id:91,n:"Rewir Twórczy – «Ciemność, widzę ciemność»",p:"ul. Swojczycka 118",t:"19:00",e:"24:00",c:"kultura",r:false,k:false,lat:51.1040,lng:17.1140,d:"Alternatywna przestrzeń twórcza – nocne wydarzenie.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1410020-ciemnosc-widze-ciemnosc-ciemnosc-widze-czyli-noc-muzeow-2026-w-rewirze-tworczym"},
+ {id:92,n:"MDK Śródmieście – «Strażnicy Ziemi»",p:"ul. Dubois 5",t:"16:00",e:"22:00",c:"kultura",r:false,k:true,lat:51.1109,lng:17.0269,d:"Wystawa i warsztaty artystyczne dla dzieci.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409582-noc-muzeow-2026-mdk-srodmiescie-wystawa-straznicy-ziemi-i-warsztaty-artystyczne"},
+ {id:93,n:"MDK im. Kopernika – Noc Pegaza",p:"ul. Skarbowców 8a",t:"18:00",e:"23:00",c:"kultura",r:false,k:true,lat:51.0952,lng:17.0425,d:"Spektakle, warsztaty plastyczne, nocne atrakcje.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409557-noc-muzeow-2026-noc-pegaza-w-mdk"},
+ {id:94,n:"Kontury Kultury – Strefa Edukacji Twórczej",p:"ul. Świdnicka 9b",t:"15:00",e:"23:00",c:"kultura",r:false,k:true,lat:51.1084,lng:17.0285,d:"Warsztaty kreatywne i wystawy dla dzieci.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1410373-noc-muzeow-2026-kontury-kultury-strefa-edukacji-tworczej"},
+ {id:95,n:"Klub Sympatyków Kolei – Dworzec PKP",p:"ul. Piłsudskiego 105",t:"20:30",e:"23:00",c:"kultura",r:false,k:true,lat:51.0989,lng:17.0360,d:"Historia kolei i modele pociągów na Dworcu Głównym.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409408-noc-muzeow-2026-klub-sympatykow-kolei-we-wroclawiu"},
+ {id:96,n:"Akademickie Radio Luz",p:"pl. Grunwaldzki 9",t:"18:00",e:"23:00",c:"kultura",r:false,k:false,lat:51.1108,lng:17.0576,d:"Historia radia – otwarte studia nagraniowe.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409870-noc-muzeow-2026-w-akademickim-radiu-luz"},
+ {id:97,n:"Piastowska Pieczęć – Dom Notre Dame",p:"ul. Nowowiejska 77",t:"16:30",e:"21:00",c:"kultura",r:false,k:false,lat:51.1087,lng:17.0382,d:"Historia Piastów śląskich.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409858-noc-muzeow-2026-piastowska-pieczec"},
+ {id:98,n:"Kościół Adwentystów Dnia Siódmego",p:"ul. Dąbrowskiego 14",t:"09:00",e:"22:00",c:"kultura",r:false,k:false,lat:51.1120,lng:17.0424,d:"Czynny od rana – historia i architektura kościoła.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409613-noc-muzeow-2026-kosciol-adwentystow-dnia-siodmego"},
+ {id:99,n:"OPP – Warsztaty japońskiej sztuki szycia",p:"ul. Traugutta 19",t:"19:00",e:"22:00",c:"kultura",r:true,k:false,lat:51.1116,lng:17.0361,d:"«Nocne Notatniki» – warsztaty szycia. ⚠ Rezerwacja wskazana.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409608-noc-muzeow-2026-nocne-notatniki-japonska-sztuka-szycia-warsztaty-opp"},
+ {id:100,n:"Biblioteka Uniwersytetu Medycznego",p:"ul. Mikulicza-Radeckiego 4a",t:"17:00",e:"22:00",c:"nauka",r:false,k:false,lat:51.1149,lng:17.0231,d:"Historyczne publikacje medyczne.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409620-noc-muzeow-2026-biblioteka-uniwersytetu-medycznego-we-wroclawiu"},
+ {id:101,n:"Park Węgrzynowskiego – gra terenowa",p:"Park L. Węgrzynowskiego",t:"18:00",e:"22:00",c:"kultura",r:false,k:true,lat:51.1148,lng:17.0586,d:"Gra terenowa i wspólne rysowanie w parku.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409656-noc-muzeow-2026-gra-terenowa-i-wspolne-rysowanie-w-parku-im-leslawa-wegrzynowskiego"},
+ {id:102,n:"Spacer olfaktoryczny z Illią Meierem",p:"Park L. Węgrzynowskiego",t:"19:30",e:"22:00",c:"kultura",r:true,k:false,lat:51.1149,lng:17.0587,d:"Odkrywanie miasta przez zmysł węchu. ⚠ Rezerwacja wskazana.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409655-noc-muzeow-2026-olfaktoryczny-spacer-z-illia-meierem-i-anna-oleszkiewicz"},
+ {id:103,n:"Spacer z przewodnikiem – Baśnie, mity, legendy",p:"pl. Katedralny (Ostrów Tumski)",t:"13:00",e:"18:00",c:"kultura",r:false,k:true,lat:51.1151,lng:17.0466,d:"Bezpłatny spacer po Ostrowie Tumskim.",url:"https://www.wroclaw.pl/go/wydarzenia/sport-i-rekreacja/1409552-noc-muzeow-2026-basnie-mity-legendy-nie-oczywiste-opowiesci-bezplatny-spacer-z-przewodnikiem"},
+ {id:104,n:"Oprowadzanie po hali Kraftpost – przyszła siedziba BWA",p:"ul. Kolejowa 63",t:"21:00",e:"24:00",c:"kultura",r:true,k:false,lat:51.1068,lng:17.0148,d:"Rzadka okazja zwiedzenia dawnej hali pocztowej. ⚠ Rezerwacja.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409657-noc-muzeow-2026-oprowadzanie-po-przyszlej-siedzibie-bwa-wroclaw-w-dawnej-hali-kraftpost"},
+ {id:105,n:"infowuwacafe – Osiedle WuWA",p:"ul. Dembowskiego 8",t:"17:00",e:"22:00",c:"kultura",r:false,k:false,lat:51.1150,lng:17.0732,d:"Modernistyczne osiedle z 1929 r.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1410365-noc-muzeow-2026-infowuwacafe"},
+ {id:106,n:"Archiwum Budowlane (oddział Muzeum Architektury)",p:"ul. Bernardyńska 5a",t:"16:00",e:"22:00",c:"nauka",r:false,k:false,lat:51.1091,lng:17.0337,d:"Plany budowlane i historia architektoniczna Wrocławia.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409873-noc-muzeow-w-archiwum-budowlanym-wroclawia-oddzial-muzeum-architektury"},
+ {id:107,n:"Liceum Sztuk Plastycznych – Zwierzomaszyny",p:"ul. Piotra Skargi 2",t:"17:30",e:"23:00",c:"kultura",r:false,k:true,lat:51.1102,lng:17.0330,d:"Uczniowska wystawa «Zwierzomaszyny».",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409915-zwierzomaszyny-w-plastyku-noc-muzeow-2026"},
+ {id:108,n:"NFM – Narodowe Forum Muzyki",p:"pl. Wolności 1",t:"15:00",e:"23:00",c:"kultura",r:false,k:false,lat:51.1104,lng:17.0262,d:"Jedno z najważniejszych centrów muzycznych – nocne otwarcie.",url:"https://www.wroclaw.pl/go/wydarzenia/muzyka/1410382-noc-muzeow-2026-narodowe-forum-muzyki"},
+ {id:109,n:"SODA SPRING – Targi rękodzieła",p:"Sztuka Na Miejscu",t:"18:00",e:"23:00",c:"kultura",r:false,k:true,lat:51.1082,lng:17.0276,d:"Targi rękodzieła – design, biżuteria, ceramika.",url:"https://www.wroclaw.pl/go/wydarzenia/sztuka/1409602-noc-muzeow-2026-soda-spring-wystawa-targi-rekodziela"},
+ {id:110,n:"Kino DCF – Dolnośląskie Centrum Filmowe",p:"ul. Piłsudskiego 64a",t:"22:00",e:"03:00",c:"kino",r:false,k:false,lat:51.1071,lng:17.0322,d:"Nocny maraton filmowy.",url:"https://www.wroclaw.pl/go/wydarzenia/kino/1409406-noc-muzeow-2026-kino-dcf"},
+ {id:111,n:"Kino Nowe Horyzonty",p:"ul. Kazimierza Wielkiego 19a",t:"12:00",e:"03:00",c:"kino",r:false,k:false,lat:51.1069,lng:17.0333,d:"Repertuar specjalny – cały dzień i noc.",url:"https://www.wroclaw.pl/go/wydarzenia/kino/1410063-noc-muzeow-2026-kino-nowe-horyzonty"},
+ {id:112,n:"Muzeum Mineralogiczne UWr – Oddział",p:"ul. Cybulskiego 28",t:"12:00",e:"20:00",c:"nauka",r:false,k:true,lat:51.1143,lng:17.0254,d:"Oddział muzeum mineralogicznego.",url:"https://www.wroclaw.pl/go/wydarzenia/edukacja-i-rozwoj/1409979-noc-muzeow-2026-oddzial-muzeum-mineralogicznego-uniwersytetu-wroclawskiego-im-k-maslankiewicza"},
+];
+
+let map,markers=[],activeCat='all',searchQ='',activeCard=null,filterOpen=false;
+
+// Convert "HH:MM" to minutes since midnight. "24:00" → 1440, "03:00" → 180
+function toMin(s){const[h,m]=s.split(':').map(Number);return h*60+m;}
+
+function isOpen(ev){
+  const now=new Date();
+  const cur=now.getHours()*60+now.getMinutes();
+  const start=toMin(ev.t);
+  let end=toMin(ev.e);
+  // Handles "24:00" (=1440) and times past midnight like "03:00"
+  if(end===0) end=1440; // "00:00" means midnight closing = end of day
+  if(end<=start){
+    // Crosses midnight: open if cur>=start OR cur<end
+    return cur>=start||cur<end;
+  }
+  return cur>=start&&cur<end;
+}
+
+function mkIcon(cat,big){
+  const c=CC[cat]||'#f0c040',s=big?18:13;
+  return L.divIcon({className:'',html:`<div style="width:${s}px;height:${s}px;background:${c};border-radius:50%;border:2px solid rgba(0,0,0,.5);box-shadow:0 0 ${big?10:4}px ${c};"></div>`,iconSize:[s,s],iconAnchor:[s/2,s/2]});
+}
+
+function getFiltered(){
+  return EV.filter(e=>{
+    const mc=activeCat==='all'||e.c===activeCat;
+    const q=searchQ.toLowerCase();
+    const ms=!q||e.n.toLowerCase().includes(q)||e.p.toLowerCase().includes(q);
+    const mo=!filterOpen||isOpen(e);
+    return mc&&ms&&mo;
+  });
+}
+
+function render(){
+  const list=getFiltered();
+  const openCount=EV.filter(isOpen).length;
+  document.getElementById('cnt').textContent=list.length+' atrakcji';
+  document.getElementById('sbc').textContent=
+    filterOpen
+      ? `${list.length} czynnych teraz · z ${openCount} otwartych`
+      : `${list.length} wydarzeń · wg godziny`;
+  renderMarkers(list);
+  renderList(list);
+}
+
+function renderMarkers(list){
+  markers.forEach(m=>map.removeLayer(m));
+  markers=[];
+  list.forEach(ev=>{
+    const m=L.marker([ev.lat,ev.lng],{icon:mkIcon(ev.c,false)})
+      .addTo(map)
+      .bindTooltip(ev.n,{direction:'top',offset:[0,-8],opacity:0.95})
+      .on('click',()=>{showDetail(ev);map.panTo([ev.lat,ev.lng]);hlMarker(ev.id);hlCardById(ev.id);});
+    m._eid=ev.id;
+    markers.push(m);
+  });
+}
+
+function renderList(list){
+  const el=document.getElementById('el');
+  const sorted=[...list].sort((a,b)=>a.t.localeCompare(b.t));
+  if(!sorted.length){el.innerHTML='<div class="nores">Brak wyników dla wybranych filtrów.</div>';return;}
+  el.innerHTML=sorted.map(ev=>`
+    <div class="ec" data-id="${ev.id}" style="--cc:${CC[ev.c]}">
+      <div class="et">${ev.t} · ${CL[ev.c]}</div>
+      <div class="en">${ev.n}</div>
+      <div class="ep">📍 ${ev.p}</div>
+      <div class="ebs">
+        <span class="bx bf">Wstęp wolny</span>
+        ${ev.r?'<span class="bx br">⚠ Rezerwacja</span>':''}
+        ${ev.k?'<span class="bx bk">👶 Dla dzieci</span>':''}
+        ${isOpen(ev)?'<span class="bx" style="color:#3cc878;border-color:rgba(60,200,120,.4);background:rgba(60,200,120,.1);">🟢 Czynne</span>':''}
+      </div>
+    </div>`).join('');
+  el.querySelectorAll('.ec').forEach(card=>{
+    card.addEventListener('click',()=>{
+      const ev=EV.find(e=>e.id===+card.dataset.id);
+      if(!ev)return;
+      showDetail(ev);
+      map.flyTo([ev.lat,ev.lng],16,{duration:0.6});
+      hlMarker(ev.id);
+      hlCard(card);
+    });
+  });
+}
+
+function hlMarker(id){
+  markers.forEach(m=>{const ev=EV.find(e=>e.id===m._eid);if(ev)m.setIcon(mkIcon(ev.c,m._eid===id));});
+}
+function hlCard(card){
+  if(activeCard)activeCard.classList.remove('on');
+  activeCard=card;card.classList.add('on');
+  card.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function hlCardById(id){
+  const c=document.querySelector(`.ec[data-id="${id}"]`);
+  if(c)hlCard(c);
+}
+
+function showDetail(ev){
+  const col=CC[ev.c];
+  document.getElementById('dcontent').innerHTML=`
+    <div class="dcat" style="color:${col}">${CL[ev.c]}</div>
+    <div class="dname">${ev.n}</div>
+    <div class="dmeta">
+      <div class="mi"><div class="ml">Otwarcie</div><div class="mv">⏰ ${ev.t}</div></div>
+      <div class="mi"><div class="ml">Zamknięcie</div><div class="mv">🌙 ${ev.e}</div></div>
+      <div class="mi"><div class="ml">Wstęp</div><div class="mv" style="color:#3cc878">✓ Bezpłatny</div></div>
+      <div class="mi"><div class="ml">Rezerwacja</div><div class="mv" style="color:${ev.r?'#e05a6e':'#3cc878'}">${ev.r?'⚠ Wymagana':'✓ Niewymagana'}</div></div>
+    </div>
+    <div class="da"><span>📍</span><span>${ev.p}</span></div>
+    ${ev.d?`<p class="dd">${ev.d}</p>`:''}
+    <a class="dl" href="${ev.url}" target="_blank">→ Więcej informacji na wroclaw.pl</a>
+  `;
+  document.getElementById('dp').classList.add('open');
+}
+
+window.addEventListener('load',()=>{
+  map=L.map('map',{center:[51.1090,17.0350],zoom:14});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap contributors',maxZoom:19
+  }).addTo(map);
+  setTimeout(()=>map.invalidateSize(),150);
+  render();
+
+  document.getElementById('dclose').addEventListener('click',()=>{
+    document.getElementById('dp').classList.remove('open');
+  });
+  document.querySelectorAll('.fb[data-c]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.fb[data-c]').forEach(b=>b.classList.remove('on'));
+      btn.classList.add('on');
+      activeCat=btn.dataset.c;
+      render();
+    });
+  });
+
+  // Otwarte button — independent toggle
+  const openBtn=document.getElementById('openBtn');
+  const clockEl=document.getElementById('clock');
+
+  function updateClock(){
+    const n=new Date();
+    const h=String(n.getHours()).padStart(2,'0');
+    const m=String(n.getMinutes()).padStart(2,'0');
+    clockEl.textContent='⏱ '+h+':'+m;
+  }
+
+  openBtn.addEventListener('click',()=>{
+    filterOpen=!filterOpen;
+    openBtn.classList.toggle('on',filterOpen);
+    clockEl.classList.toggle('vis',filterOpen);
+    if(filterOpen)updateClock();
+    render();
+  });
+
+  // Refresh every 30s so "Otwarte" stays accurate
+  setInterval(()=>{
+    if(filterOpen){updateClock();render();}
+  },30000);
+  document.getElementById('si').addEventListener('input',e=>{
+    searchQ=e.target.value;render();
+  });
+});
+</script>
+</body>
+</html>
