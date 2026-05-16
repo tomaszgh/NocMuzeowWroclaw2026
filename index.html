@@ -28,6 +28,16 @@ body{display:flex;flex-direction:column;overflow:hidden;}
 .htitle h1{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--gold);font-weight:900;line-height:1;}
 .htitle p{font-size:0.62rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-top:2px;}
 #cnt{background:var(--gold);color:var(--night);font-weight:700;font-size:0.74rem;padding:3px 10px;border-radius:20px;white-space:nowrap;}
+#wspBtn{
+  display:flex;align-items:center;gap:6px;
+  background:linear-gradient(135deg,#ff6b35,#f7931e);
+  color:#fff;font-weight:600;font-size:0.74rem;
+  padding:5px 12px;border-radius:20px;text-decoration:none;
+  white-space:nowrap;flex-shrink:0;
+  box-shadow:0 2px 10px rgba(247,147,30,.35);
+  transition:all .18s;
+}
+#wspBtn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(247,147,30,.5);opacity:.92;}
 
 /* TOOLBAR */
 #tbr{
@@ -156,6 +166,10 @@ body{display:flex;flex-direction:column;overflow:hidden;}
     <p>16 maja 2026 · sobota · wstęp wolny</p>
   </div>
   <div id="cnt">112 atrakcji</div>
+  <a href="https://buycoffee.to/community_software" target="_blank" id="wspBtn">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+    Wesprzyj
+  </a>
 </div>
 
 <div id="tbr">
